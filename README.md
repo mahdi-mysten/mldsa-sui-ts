@@ -49,7 +49,23 @@ valid but are not:
 `crates/sui/src/unit_tests/keytool_tests.rs`, plus the Rust stage outputs for
 the first vector. Those intermediates let a mismatch be traced to BIP-39, the
 salt, or HKDF, instead of only showing that two addresses differ. The same
-check runs as `npm run interop`.
+check runs as `npm run interop`, and CI runs it on every push and pull
+request.
+
+Because those values are a copy of ones owned by the Sui repo, `npm run
+check:rust-fixtures` fetches `keytool_tests.rs` and compares the triples
+directly. Without it, regenerating the Rust fixtures would leave CI here green
+while the two stacks diverged. Point it at a checkout or a raw URL:
+
+```bash
+SUI_FIXTURES_URL=../sui/crates/sui/src/unit_tests/keytool_tests.rs npm run check:rust-fixtures
+```
+
+CI runs it as a blocking job against `mahdi/ml-dsa-types`. It tracks a branch
+rather than a commit so that Rust-side edits are noticed as they land; override
+with the `SUI_FIXTURES_URL` repository variable when the derivation merges to
+`main`. Use the `refs/heads/<branch>` URL form, which is unambiguous when a
+branch name contains a slash.
 
 Mnemonics are 12 words, matching the Sui CLI default, and reuse the phrases
 from the repo's secp256r1 mnemonic test.

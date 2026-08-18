@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The gate that matters: re-derives the mnemonic fixtures pinned from
+      # the Rust keytool tests.
+      - name: Rust interop
+        run: npm run interop
+
+      # next.config.mjs sets ignoreBuildErrors, so `next build` alone would
+      # not catch a type error. Check types explicitly.
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  rust-fixture-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Compare fixtures with the Sui repo
+        env:
+          SUI_FIXTURES_URL: ${{ vars.SUI_FIXTURES_URL || 'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/mahdi/ml-dsa-types/crates/sui/src/unit_tests/keytool_tests.rs' }}
+        run: npm run check:rust-fixtures

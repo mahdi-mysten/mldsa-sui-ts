@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "interop": "node --experimental-strip-types --no-warnings scripts/interop.ts"
+    "interop": "node --experimental-strip-types --no-warnings scripts/interop.ts",
+    "check:rust-fixtures": "node --experimental-strip-types --no-warnings scripts/check-rust-fixtures.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.3.0",
