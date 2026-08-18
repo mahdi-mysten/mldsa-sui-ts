@@ -10,6 +10,7 @@
     "check:rust-fixtures": "node --experimental-strip-types --no-warnings scripts/check-rust-fixtures.mjs"
   },
   "dependencies": {
+    "@noble/curves": "^2.0.1",
     "@noble/hashes": "2.3.0",
     "@noble/post-quantum": "0.7.0",
     "@scure/base": "2.3.0",

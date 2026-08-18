@@ -6,9 +6,6 @@
 // so a mismatch can be localized to one stage (BIP-39, salt, HKDF) rather
 // than just "the addresses differ".
 //
-// 12 words because that is the Sui CLI default (`word12`); the phrases are
-// the same ones the repo's secp256r1 mnemonic test uses.
-//
 // Changing any value here is wallet-breaking derivation drift, not a test to
 // update. Both sides must move together.
 
@@ -41,3 +38,4 @@ export const INTERMEDIATES = {
   info: 'mldsa65-keygen-v1',
   keygenSeed: '6e5d7313e91cb9089b95436c5b2cf351473309261839154a73071085475acbbf',
 }
+
