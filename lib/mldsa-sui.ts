@@ -7,8 +7,8 @@
 // built on this code hands users an address they cannot spend from.
 // `lib/fixtures.ts` pins the values that prove it; run `npm run interop`.
 import { ml_dsa65 } from '@noble/post-quantum/ml-dsa.js'
-import { hkdf } from '@noble/hashes/hkdf.js'
-import { sha3_256 } from '@noble/hashes/sha3.js'
+import { hmac } from '@noble/hashes/hmac.js'
+import { sha512 } from '@noble/hashes/sha2.js'
 import { blake2b } from '@noble/hashes/blake2.js'
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english.js'
@@ -23,10 +23,11 @@ export const MLDSA65_FLAG = 0x07
 export const PURPOSE = 94
 export const COIN_TYPE = 784
 
-/// HKDF info label. Must equal MLDSA65_KEYGEN_HKDF_INFO in key_derive.rs.
-/// The `-v1` suffix leaves room to change the construction later without
-/// silently deriving different keys from the same mnemonic.
-export const HKDF_INFO = new TextEncoder().encode('mldsa65-keygen-v1')
+/// Master HMAC key for the SLIP-0010 walk, byte for byte the string from
+/// satoshilabs/slips#1968 (also NEAR and QIP-0002), so hardware wallets can
+/// serve all adopters with one code path. Must equal MLDSA65_SLIP10_KEY in
+/// key_derive.rs.
+export const SLIP10_KEY = new TextEncoder().encode('ML-DSA-65 seed')
 
 export const PUBLIC_KEY_BYTES = 1952
 export const SECRET_KEY_BYTES = 4032
@@ -54,10 +55,8 @@ export function hexToBytes(hex: string): Uint8Array {
   return bytes
 }
 
-/// The canonical derivation path. It is consumed as the HKDF salt rather than
-/// walked as a BIP-32 chain, so it must render exactly as Rust's
-/// `bip32::DerivationPath` Display impl does: apostrophes, every level
-/// hardened. Writing `94h` or dropping a `'` yields a different key.
+/// The canonical derivation path: every level hardened (ML-DSA has no
+/// tweakable algebra, so no public derivation exists), apostrophe form.
 export function mldsa65Path(account = 0, change = 0, address = 0): string {
   return `m/${PURPOSE}'/${COIN_TYPE}'/${account}'/${change}'/${address}'`
 }
@@ -95,10 +94,9 @@ export type Derived = {
 
 /// Derive a Sui ML-DSA-65 account from a BIP-39 mnemonic.
 ///
-/// The full 64-byte BIP-39 seed is the HKDF ikm. fastcrypto's `HkdfIkm` is
-/// `PrivateSeed<32, FIXED_LENGTH_ONLY = false>`, so the 32 there is a
-/// recommendation rather than a length check. Truncating to 32 here would look
-/// reasonable and produce entirely different keys.
+/// SLIP-0010 hardened walk keyed "ML-DSA-65 seed" (slips#1968); the final
+/// node secret I_L is the FIPS 204 keygen seed. Mirrors
+/// derive_mldsa65_slip10 in key_derive.rs.
 ///
 /// Throws if the mnemonic fails its BIP-39 checksum or the path is malformed.
 export function deriveAccount(mnemonic: string, path = mldsa65Path()): Derived {
@@ -109,13 +107,15 @@ export function deriveAccount(mnemonic: string, path = mldsa65Path()): Derived {
   validatePath(path)
 
   const bip39Seed = mnemonicToSeedSync(phrase, '')
-  const keygenSeed = hkdf(
-    sha3_256,
-    bip39Seed,
-    new TextEncoder().encode(path),
-    HKDF_INFO,
-    KEYGEN_SEED_BYTES,
-  )
+  let node = hmac(sha512, SLIP10_KEY, bip39Seed)
+  for (const level of path.trim().split('/').slice(1)) {
+    const index = (Number(level.replace(/['h]$/, '')) + 0x80000000) >>> 0
+    const data = new Uint8Array(37)
+    data.set(node.subarray(0, 32), 1)
+    new DataView(data.buffer).setUint32(33, index)
+    node = hmac(sha512, node.subarray(32), data)
+  }
+  const keygenSeed = node.slice(0, KEYGEN_SEED_BYTES)
   const { publicKey, secretKey } = ml_dsa65.keygen(keygenSeed)
   return {
     bip39Seed,

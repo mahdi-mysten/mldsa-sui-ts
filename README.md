@@ -23,32 +23,29 @@ address the user cannot spend from.
 |---|---|
 | flag | `0x07` |
 | path | `m/94'/784'/account'/change'/address'`, every level hardened |
-| BIP-39 seed | `mnemonicToSeedSync(mnemonic, '')`, **64 bytes**, passed to HKDF whole |
-| HKDF | `hkdf(sha3_256, ikm = bip39Seed, salt = path string, info = "mldsa65-keygen-v1", 32)` |
-| keygen | `ml_dsa65.keygen(seed32)`, where the HKDF output is the FIPS 204 seed |
+| BIP-39 seed | `mnemonicToSeedSync(mnemonic, '')`, **64 bytes** |
+| walk | SLIP-0010 hardened-only, master `HMAC-SHA512("ML-DSA-65 seed", bip39Seed)` (satoshilabs/slips#1968; same as NEAR, QIP-0002) |
+| keygen | `ml_dsa65.keygen(I_L)`, the final 32-byte node secret is the FIPS 204 seed |
 | address | `blake2b256(0x07 \|\| pk)`, first 32 bytes |
 | private key | `bech32("suiprivkey", 0x07 \|\| seed32)`, 33 bytes, about 70 chars |
 | envelope | `0x07 \|\| sig \|\| pk` = 1 + 3309 + 1952 = **5262 bytes** |
 
-Three details are easy to get wrong, and each one produces keys that look
-valid but are not:
+Two details are easy to get wrong, and each produces keys that look valid but
+are not:
 
-1. **Do not truncate the BIP-39 seed to 32 bytes.** fastcrypto's `HkdfIkm` is
-   `PrivateSeed<32, FIXED_LENGTH_ONLY = false>`, so the 32 is a recommendation
-   rather than a length check, and Rust feeds all 64 bytes in.
-2. **The path is an HKDF salt, not a BIP-32 chain.** It is consumed as the
-   exact string Rust's `DerivationPath` Display produces, with apostrophes
-   rather than `h`. There is no child-key walk. That is also why every level
-   must be hardened: ML-DSA has no tweakable algebra, so there is no xpub
-   notion to preserve.
-3. **SHA3-256, not SHA-256.**
+1. **The master HMAC key is the exact string `ML-DSA-65 seed`** (capitals,
+   hyphens, one space), per slips#1968. Any variation derives keys no other
+   adopter can recover.
+2. **Every level is hardened** (`index + 0x80000000`), and the child step is
+   `HMAC-SHA512(chainCode, 0x00 || I_L || ser32(index))`. ML-DSA has no
+   tweakable algebra, so no unhardened derivation exists.
 
 ## Interop
 
 `lib/fixtures.ts` holds the triples pinned by `test_mnemonics_mldsa65` in
 `crates/sui/src/unit_tests/keytool_tests.rs`, plus the Rust stage outputs for
 the first vector. Those intermediates let a mismatch be traced to BIP-39, the
-salt, or HKDF, instead of only showing that two addresses differ. The same
+or the SLIP-10 walk, instead of only showing that two addresses differ. The same
 check runs as `npm run interop`, and CI runs it on every push and pull
 request.
 
@@ -61,11 +58,12 @@ while the two stacks diverged. Point it at a checkout or a raw URL:
 SUI_FIXTURES_URL=../sui/crates/sui/src/unit_tests/keytool_tests.rs npm run check:rust-fixtures
 ```
 
-CI runs it as a blocking job against `mahdi/ml-dsa-types`. It tracks a branch
-rather than a commit so that Rust-side edits are noticed as they land; override
-with the `SUI_FIXTURES_URL` repository variable when the derivation merges to
-`main`. Use the `refs/heads/<branch>` URL form, which is unambiguous when a
-branch name contains a slash.
+CI runs it against the Sui derivation branch (`mahdi/mldsa-derivation`), non-blocking
+until that branch exists on the remote. It tracks a branch rather than a commit so
+Rust-side edits are noticed as they land; override with the `SUI_FIXTURES_URL`
+repository variable when the derivation merges to `main`. Use the
+`refs/heads/<branch>` URL form, which is unambiguous when a branch name contains a
+slash.
 
 Mnemonics are 12 words, matching the Sui CLI default, and reuse the phrases
 from the repo's secp256r1 mnemonic test.

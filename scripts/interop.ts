@@ -14,8 +14,7 @@ function check(label: string, got: string, want: string) {
 console.log('### stages against the Rust intermediates (vector 0)')
 const v0 = deriveAccount(TRIPLES[0].mnemonic)
 check('BIP-39 seed (64 B)', bytesToHex(v0.bip39Seed), INTERMEDIATES.bip39Seed)
-check('HKDF salt string', mldsa65Path(), INTERMEDIATES.salt)
-check('HKDF output / keygen seed (32 B)', bytesToHex(v0.keygenSeed), INTERMEDIATES.keygenSeed)
+check('SLIP-10 I_L / keygen seed (32 B)', bytesToHex(v0.keygenSeed), INTERMEDIATES.keygenSeed)
 
 console.log('\n### full triples against the Rust keytool fixtures')
 for (const t of TRIPLES) {

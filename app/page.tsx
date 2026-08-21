@@ -65,7 +65,7 @@ export default function Page() {
         setSignPrivkey(bytesToHex(d.secretKey))
         setVerifyPubkey(pubHex)
         setDeriveStatus({
-          text: `\u2713 Derived in ${ms.toFixed(2)} ms (HKDF-SHA3-256 + FIPS 204 keygen).`,
+          text: `\u2713 Derived in ${ms.toFixed(2)} ms (SLIP-0010 + FIPS 204 keygen).`,
           kind: 'success',
         })
       } else {
@@ -227,7 +227,7 @@ export default function Page() {
           <textarea id="suiprivkey" rows={2} readOnly value={suiPrivkey} style={inputStyle} placeholder="suiprivkey1..." />
           {isPq && (
             <>
-              <Label htmlFor="keygenseed">HKDF output = FIPS 204 keygen seed (32 bytes):</Label>
+              <Label htmlFor="keygenseed">SLIP-10 node secret = FIPS 204 keygen seed (32 bytes):</Label>
               <textarea id="keygenseed" rows={1} readOnly value={keygenSeed} style={inputStyle} placeholder="32-byte seed in hex..." />
             </>
           )}
@@ -291,8 +291,11 @@ export default function Page() {
             and nothing is sent to a server. Still, treat this as a demo: use throwaway mnemonics.
           </p>
           <p style={{ margin: '0 0 0.5rem' }}>
-            Derivation: <code>HKDF-SHA3-256(ikm = BIP-39 seed, salt = path, info = &quot;mldsa65-keygen-v1&quot;)</code>{' '}
-            gives the 32-byte FIPS 204 keygen seed.
+            Derivation: the SLIP-0010 hardened walk with master HMAC key{' '}
+            <code>&quot;ML-DSA-65 seed&quot;</code> (satoshilabs/slips#1968, also adopted by NEAR);
+            the final node secret is the 32-byte FIPS 204 keygen seed. The purpose node{' '}
+            <code>94&apos;</code> separates ML-DSA keys from ed25519 (<code>44&apos;</code>),
+            secp256k1 (<code>54&apos;</code>) and secp256r1 (<code>74&apos;</code>).
           </p>
           <p style={{ margin: '0 0 0.5rem' }}>
             Purpose node <code>94&apos;</code> separates ML-DSA

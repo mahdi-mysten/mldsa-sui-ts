@@ -32,8 +32,12 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Non-blocking until the Sui derivation PR branch (mahdi/mldsa-derivation)
+  # exists on the remote; the types PR does not carry the mnemonic fixtures.
+  # Drop continue-on-error once it resolves.
   rust-fixture-drift:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,5 +47,5 @@ jobs:
       - run: npm ci
       - name: Compare fixtures with the Sui repo
         env:
-          SUI_FIXTURES_URL: ${{ vars.SUI_FIXTURES_URL || 'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/mahdi/ml-dsa-types/crates/sui/src/unit_tests/keytool_tests.rs' }}
+          SUI_FIXTURES_URL: ${{ vars.SUI_FIXTURES_URL || 'https://raw.githubusercontent.com/MystenLabs/sui/refs/heads/mahdi/mldsa-derivation/crates/sui/src/unit_tests/keytool_tests.rs' }}
         run: npm run check:rust-fixtures
